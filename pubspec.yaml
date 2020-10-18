@@ -1,4 +1,4 @@
-name: chunk_uploader
+name: chunked_uploader
 description: A plugin to upload files to server in chunks.
 version: 0.0.1
 homepage: https://github.com/Taskulu/chunked_uploader
