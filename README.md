@@ -2,13 +2,40 @@
 
 A plugin to upload files to server in chunks.
 
-## Getting Started
+![pub package](https://img.shields.io/pub/v/chunked_uploader.svg)
 
-This project is a starting point for a Dart
-[package](https://flutter.dev/developing-packages/),
-a library module containing code that can be shared easily across
-multiple Flutter or Dart projects.
+## Usage
 
-For help getting started with Flutter, view our 
-[online documentation](https://flutter.dev/docs), which offers tutorials, 
-samples, guidance on mobile development, and a full API reference.
+To use this plugin, add chunked_uploader as dependency in your pubspec.yaml file.
+
+``` yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  chunked_uploader: ^0.0.1
+```
+
+## Example
+
+``` dart
+ChunkedUploader chunkedUploader = ChunkedUploader(
+    options: BaseOptions(
+        baseUrl: 'https://example.com/api',
+        headers: {
+          'Authorization': 'Bearer',
+        }),
+    fileKey: 'file',
+    method: 'POST',
+    filePath: '/path/to/file',
+    maxChunkSize: 500000,
+    path: '/file');
+chunkedUploader.progressStream.listen((event) {
+  print(event);
+});
+try {
+  Response response = await chunkedUploader.upload();
+  print(response);
+} on DioError catch (e) {
+  print(e);
+}
+```
