@@ -12,7 +12,7 @@ To use this plugin, add chunked_uploader as dependency in your pubspec.yaml file
 dependencies:
   flutter:
     sdk: flutter
-  chunked_uploader: ^0.0.1
+  chunked_uploader: ^0.0.2+1
 ```
 
 ## Example
