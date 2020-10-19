@@ -18,22 +18,15 @@ dependencies:
 ## Example
 
 ``` dart
-ChunkedUploader chunkedUploader = ChunkedUploader(
-    options: BaseOptions(
-        baseUrl: 'https://example.com/api',
-        headers: {
-          'Authorization': 'Bearer',
-        }),
-    fileKey: 'file',
-    method: 'POST',
-    filePath: '/path/to/file',
-    maxChunkSize: 500000,
-    path: '/file');
-chunkedUploader.progressStream.listen((event) {
-  print(event);
-});
+ChunkedUploader chunkedUploader = ChunkedUploader(Dio(BaseOptions(
+    baseUrl: 'https://example.com/api',
+    headers: {'Authorization': 'Bearer'})));
 try {
-  Response response = await chunkedUploader.upload();
+  Response response = await chunkedUploader.upload(
+      filePath: '/path/to/file',
+      maxChunkSize: 500000,
+      path: '/file',
+      onUploadProgress: (progress) => print(progress));
   print(response);
 } on DioError catch (e) {
   print(e);

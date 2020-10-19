@@ -8,38 +8,56 @@ import 'package:path/path.dart' as p;
 
 class ChunkedUploader {
   final Dio _dio;
-  final File _file;
-  final String _fileName, _path, _method, _fileKey;
-  final Map<String, dynamic> _data;
-  int _fileSize;
-  int _maxChunkSize;
 
-  ChunkedUploader({
-    BaseOptions options,
-    String path,
+  ChunkedUploader(this._dio);
+
+  Future<Response> upload({
     String filePath,
+    String path,
     Map<String, dynamic> data,
-    int maxChunkSize = 0,
-    String fileKey = 'file',
+    CancelToken cancelToken,
+    int maxChunkSize,
+    Function(double) onUploadProgress,
     String method = 'POST',
-  })  : assert(options != null || path != null),
-        assert(method != null),
-        assert(fileKey != null),
-        assert(filePath != null),
-        assert(maxChunkSize > 0),
-        this._dio = Dio(options),
-        this._file = File(filePath),
-        this._fileName = p.basename(filePath),
-        this._path = path,
-        this._fileKey = fileKey,
-        this._method = method,
-        this._data = data {
-    this._fileSize = this._file.lengthSync();
-    this._maxChunkSize = min(maxChunkSize, _fileSize);
-  }
+    String fileKey = 'file',
+  }) =>
+      UploadRequest(_dio,
+              filePath: filePath,
+              path: path,
+              fileKey: fileKey,
+              method: method,
+              data: data,
+              cancelToken: cancelToken,
+              maxChunkSize: maxChunkSize,
+              onUploadProgress: onUploadProgress)
+          .upload();
+}
 
-  final StreamController<double> _uploadProgressController = StreamController();
-  final CancelToken _cancelToken = CancelToken();
+class UploadRequest {
+  final Dio dio;
+  final String filePath, path, fileName;
+  final Map<String, dynamic> data;
+  final String method, fileKey;
+  final CancelToken cancelToken;
+  final File _file;
+  final Function(double) onUploadProgress;
+  int _maxChunkSize;
+  int _fileSize;
+
+  UploadRequest(this.dio,
+      {this.filePath,
+      this.path,
+      this.fileKey,
+      this.method,
+      this.data,
+      this.cancelToken,
+      this.onUploadProgress,
+      int maxChunkSize})
+      : _file = File(filePath),
+        fileName = p.basename(filePath) {
+    _fileSize = _file.lengthSync();
+    _maxChunkSize = min(_fileSize, maxChunkSize ?? _fileSize);
+  }
 
   Future<Response> upload() async {
     Response finalResponse;
@@ -48,38 +66,32 @@ class ChunkedUploader {
       final end = _getChunkEnd(i);
       final chunkStream = _getChunkStream(start, end);
       final formData = FormData.fromMap({
-        _fileKey: MultipartFile(chunkStream, end - start, filename: _fileName),
-        if (_data != null) ..._data
+        fileKey: MultipartFile(chunkStream, end - start, filename: fileName),
+        if (data != null) ...data
       });
-      finalResponse = await _dio.request(
-        _path,
+      finalResponse = await dio.request(
+        path,
         data: formData,
-        cancelToken: _cancelToken,
+        cancelToken: cancelToken,
         options: Options(
-          method: _method,
+          method: method,
           headers: _getHeaders(start, end),
         ),
         onSendProgress: (current, total) => _updateProgress(i, current, total),
       );
     }
-    _uploadProgressController.close();
     return finalResponse;
   }
 
-  cancel([String message]) {
-    _cancelToken.cancel(message);
-    _uploadProgressController.close();
-  }
+  Stream<List<int>> _getChunkStream(int start, int end) =>
+      _file.openRead(start, end);
 
   // Updating total upload progress
   _updateProgress(int chunkIndex, int chunkCurrent, int chunkTotal) {
     int totalUploadedSize = (chunkIndex * _maxChunkSize) + chunkCurrent;
     double totalUploadProgress = totalUploadedSize / _fileSize;
-    _uploadProgressController.add(totalUploadProgress);
+    this.onUploadProgress?.call(totalUploadProgress);
   }
-
-  Stream<List<int>> _getChunkStream(int start, int end) =>
-      _file.openRead(start, end);
 
   // Returning start byte offset of current chunk
   int _getChunkStart(int chunkIndex) => chunkIndex * _maxChunkSize;
@@ -95,6 +107,4 @@ class ChunkedUploader {
 
   // Returning chunks count based on file size and maximum chunk size
   int get _chunksCount => (_fileSize / _maxChunkSize).ceil();
-
-  Stream<double> get progressStream => _uploadProgressController.stream;
 }

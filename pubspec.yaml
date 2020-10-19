@@ -1,6 +1,6 @@
 name: chunked_uploader
-description: A plugin to upload files to server in chunks.
-version: 0.0.1
+description: A plugin to upload files to server in chunks using Dio.
+version: 0.0.2
 homepage: https://github.com/Taskulu/chunked_uploader
 repository: https://github.com/Taskulu/chunked_uploader
 
@@ -10,3 +10,4 @@ environment:
 dependencies:
   path: ^1.7.0
   dio: ^3.0.10
+  meta: ^1.2.3
