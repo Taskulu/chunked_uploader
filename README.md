@@ -32,3 +32,7 @@ try {
   print(e);
 }
 ```
+
+## Compatible 
+
+When working with laravel you can use https://github.com/jildertmiedema/laravel-plupload as server side chunk receiver.
