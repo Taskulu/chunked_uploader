@@ -13,6 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   chunked_uploader: ^0.0.2+1
+  dio: ^3.0.10
 ```
 
 ## Example
@@ -35,3 +36,7 @@ try {
   print(e);
 }
 ```
+
+## Compatible 
+
+When working with laravel you can use https://github.com/jildertmiedema/laravel-plupload as server side chunk receiver.
