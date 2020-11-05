@@ -13,11 +13,15 @@ dependencies:
   flutter:
     sdk: flutter
   chunked_uploader: ^0.0.2+1
+  dio: ^3.0.10
 ```
 
 ## Example
 
 ``` dart
+import 'package:chunked_uploader/chunked_uploader.dart';
+import 'package:dio/dio.dart';
+
 ChunkedUploader chunkedUploader = ChunkedUploader(Dio(BaseOptions(
     baseUrl: 'https://example.com/api',
     headers: {'Authorization': 'Bearer'})));
