@@ -11,13 +11,13 @@ class ChunkedUploader {
 
   ChunkedUploader(this._dio);
 
-  Future<Response> upload({
-    String filePath,
-    String path,
-    Map<String, dynamic> data,
-    CancelToken cancelToken,
-    int maxChunkSize,
-    Function(double) onUploadProgress,
+  Future<Response?> upload({
+    required String filePath,
+    required String path,
+    Map<String, dynamic>? data,
+    CancelToken? cancelToken,
+    int? maxChunkSize,
+    Function(double)? onUploadProgress,
     String method = 'POST',
     String fileKey = 'file',
   }) =>
@@ -35,39 +35,38 @@ class ChunkedUploader {
 
 class UploadRequest {
   final Dio dio;
-  final String filePath, path, fileName;
-  final Map<String, dynamic> data;
-  final String method, fileKey;
-  final CancelToken cancelToken;
+  final String filePath, fileName, path,fileKey;
+  final String? method ;
+  final Map<String, dynamic>? data;
+  final CancelToken? cancelToken;
   final File _file;
-  final Function(double) onUploadProgress;
-  int _maxChunkSize;
-  int _fileSize;
+  final Function(double)? onUploadProgress;
+  late int _maxChunkSize,_fileSize;
 
   UploadRequest(this.dio,
-      {this.filePath,
-      this.path,
-      this.fileKey,
+      {required String this.filePath,
+      required this.path,
+      required this.fileKey,
       this.method,
       this.data,
       this.cancelToken,
       this.onUploadProgress,
-      int maxChunkSize})
+      int? maxChunkSize})
       : _file = File(filePath),
         fileName = p.basename(filePath) {
     _fileSize = _file.lengthSync();
     _maxChunkSize = min(_fileSize, maxChunkSize ?? _fileSize);
   }
 
-  Future<Response> upload() async {
-    Response finalResponse;
+  Future<Response?> upload() async {
+    Response? finalResponse;
     for (int i = 0; i < _chunksCount; i++) {
       final start = _getChunkStart(i);
       final end = _getChunkEnd(i);
       final chunkStream = _getChunkStream(start, end);
       final formData = FormData.fromMap({
         fileKey: MultipartFile(chunkStream, end - start, filename: fileName),
-        if (data != null) ...data
+        if (data != null) ...data!
       });
       finalResponse = await dio.request(
         path,
