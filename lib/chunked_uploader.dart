@@ -4,7 +4,6 @@ import 'dart:async';
 import 'dart:math';
 import 'package:async/async.dart';
 import 'package:dio/dio.dart';
-import 'package:path/path.dart' as p;
 import 'package:universal_io/io.dart';
 
 class ChunkedUploader {
@@ -40,6 +39,7 @@ class ChunkedUploader {
 
   Future<Response?> uploadWithFilePath({
     required String filePath,
+    required String fileName,
     required String path,
     Map<String, dynamic>? data,
     CancelToken? cancelToken,
@@ -51,6 +51,7 @@ class ChunkedUploader {
       UploadRequest.fromFilePath(
         _dio,
         filePath: filePath,
+        fileName: fileName,
         path: path,
         fileKey: fileKey,
         method: method,
@@ -91,6 +92,7 @@ class UploadRequest {
   UploadRequest.fromFilePath(
     this.dio, {
     required String filePath,
+    required this.fileName,
     required this.path,
     required this.fileKey,
     this.method,
@@ -98,7 +100,7 @@ class UploadRequest {
     this.cancelToken,
     this.onUploadProgress,
     int? maxChunkSize,
-  }) : fileName = p.basename(filePath) {
+  }) {
     final file = File(filePath);
     streamReader = ChunkedStreamReader(file.openRead());
     fileSize = file.lengthSync();
