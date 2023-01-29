@@ -20,10 +20,11 @@ class ChunkedUploader {
     CancelToken? cancelToken,
     int? maxChunkSize,
     Function(double)? onUploadProgress,
+    ChunkHeadersCallback? headersCallback,
     String method = 'POST',
     String fileKey = 'file',
   }) =>
-      UploadRequest(
+      _Uploader(
         _dio,
         fileDataStream: fileDataStream,
         fileName: fileName,
@@ -35,6 +36,7 @@ class ChunkedUploader {
         cancelToken: cancelToken,
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
+        headersCallback: headersCallback,
       ).upload();
 
   Future<Response?> uploadWithFilePath({
@@ -45,10 +47,11 @@ class ChunkedUploader {
     CancelToken? cancelToken,
     int? maxChunkSize,
     Function(double)? onUploadProgress,
+    ChunkHeadersCallback? headersCallback,
     String method = 'POST',
     String fileKey = 'file',
   }) =>
-      UploadRequest.fromFilePath(
+      _Uploader.fromFilePath(
         _dio,
         filePath: filePath,
         fileName: fileName,
@@ -59,10 +62,11 @@ class ChunkedUploader {
         cancelToken: cancelToken,
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
+        headersCallback: headersCallback,
       ).upload();
 }
 
-class UploadRequest {
+class _Uploader {
   final Dio dio;
   late final int fileSize;
   late final ChunkedStreamReader<int> streamReader;
@@ -72,8 +76,9 @@ class UploadRequest {
   final CancelToken? cancelToken;
   final Function(double)? onUploadProgress;
   late int _maxChunkSize;
+  final ChunkHeadersCallback _headersCallback;
 
-  UploadRequest(
+  _Uploader(
     this.dio, {
     required Stream<List<int>> fileDataStream,
     required this.fileName,
@@ -84,12 +89,13 @@ class UploadRequest {
     this.data,
     this.cancelToken,
     this.onUploadProgress,
+    ChunkHeadersCallback? headersCallback,
     int? maxChunkSize,
-  }) : streamReader = ChunkedStreamReader(fileDataStream) {
-    _maxChunkSize = min(fileSize, maxChunkSize ?? fileSize);
-  }
+  })  : streamReader = ChunkedStreamReader(fileDataStream),
+        _maxChunkSize = min(fileSize, maxChunkSize ?? fileSize),
+        _headersCallback = headersCallback ?? _defaultHeadersCallback;
 
-  UploadRequest.fromFilePath(
+  _Uploader.fromFilePath(
     this.dio, {
     required String filePath,
     required this.fileName,
@@ -99,8 +105,9 @@ class UploadRequest {
     this.data,
     this.cancelToken,
     this.onUploadProgress,
+    ChunkHeadersCallback? headersCallback,
     int? maxChunkSize,
-  }) {
+  }) : _headersCallback = headersCallback ?? _defaultHeadersCallback {
     final file = File(filePath);
     streamReader = ChunkedStreamReader(file.openRead());
     fileSize = file.lengthSync();
@@ -108,27 +115,34 @@ class UploadRequest {
   }
 
   Future<Response?> upload() async {
-    Response? finalResponse;
-    for (int i = 0; i < _chunksCount; i++) {
-      final start = _getChunkStart(i);
-      final end = _getChunkEnd(i);
-      final chunkStream = _getChunkStream();
-      final formData = FormData.fromMap({
-        fileKey: MultipartFile(chunkStream, end - start, filename: fileName),
-        if (data != null) ...data!
-      });
-      finalResponse = await dio.request(
-        path,
-        data: formData,
-        cancelToken: cancelToken,
-        options: Options(
-          method: method,
-          headers: _getHeaders(start, end),
-        ),
-        onSendProgress: (current, total) => _updateProgress(i, current, total),
-      );
+    try {
+      Response? finalResponse;
+      for (int i = 0; i < _chunksCount; i++) {
+        final start = _getChunkStart(i);
+        final end = _getChunkEnd(i);
+        final chunkStream = _getChunkStream();
+        final formData = FormData.fromMap({
+          fileKey: MultipartFile(chunkStream, end - start, filename: fileName),
+          if (data != null) ...data!
+        });
+        finalResponse = await dio.request(
+          path,
+          data: formData,
+          cancelToken: cancelToken,
+          options: Options(
+            method: method,
+            headers: _headersCallback(start, end, fileSize),
+          ),
+          onSendProgress: (current, total) =>
+              _updateProgress(i, current, total),
+        );
+      }
+      return finalResponse;
+    } catch (_) {
+      rethrow;
+    } finally {
+      streamReader.cancel();
     }
-    return finalResponse;
   }
 
   Stream<List<int>> _getChunkStream() => streamReader.readStream(_maxChunkSize);
@@ -147,11 +161,14 @@ class UploadRequest {
   int _getChunkEnd(int chunkIndex) =>
       min((chunkIndex + 1) * _maxChunkSize, fileSize);
 
-  // Returning a header map object containing Content-Range
-  // https://tools.ietf.org/html/rfc7233#section-2
-  Map<String, dynamic> _getHeaders(int start, int end) =>
-      {'Content-Range': 'bytes $start-${end - 1}/$fileSize'};
-
   // Returning chunks count based on file size and maximum chunk size
   int get _chunksCount => (fileSize / _maxChunkSize).ceil();
 }
+
+typedef ChunkHeadersCallback = Map<String, dynamic> Function(
+    int start, int end, int fileSize);
+
+// Based on RFC 7233 (https://tools.ietf.org/html/rfc7233#section-2)
+final ChunkHeadersCallback _defaultHeadersCallback =
+    (int start, int end, int fileSize) =>
+        {'Content-Range': 'bytes $start-${end - 1}/$fileSize'};
