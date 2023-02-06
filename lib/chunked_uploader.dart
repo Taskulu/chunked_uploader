@@ -39,7 +39,7 @@ class ChunkedUploader {
         headersCallback: headersCallback,
       ).upload();
 
-  Future<Response?> uploadWithFilePath({
+  Future<Response?> uploadUsingFilePath({
     required String filePath,
     required String fileName,
     required String path,
