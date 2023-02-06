@@ -12,27 +12,37 @@ To use this plugin, add chunked_uploader as dependency in your pubspec.yaml file
 dependencies:
   flutter:
     sdk: flutter
-  chunked_uploader: ^0.1.0
-  dio: ^4.0.0
+  chunked_uploader: ^1.0.0
+  file_picker: ^5.2.5
+  dio: ^4.0.6
 ```
 
 ## Example
 
 ``` dart
-import 'package:chunked_uploader/chunked_uploader.dart';
-import 'package:dio/dio.dart';
+final file =
+    (await FilePicker.platform.pickFiles(withReadStream: true))!.files.single;
+final dio = Dio(BaseOptions(
+  baseUrl: 'https://example.com/api',
+  headers: {'Authorization': 'Bearer'},
+));
+final uploader = ChunkedUploader(dio);
 
-ChunkedUploader chunkedUploader = ChunkedUploader(Dio(BaseOptions(
-    baseUrl: 'https://example.com/api',
-    headers: {'Authorization': 'Bearer'})));
-try {
-  Response? response = await chunkedUploader.upload(
-      filePath: '/path/to/file',
-      maxChunkSize: 500000,
-      path: '/file',
-      onUploadProgress: (progress) => print(progress));
-  print(response);
-} on DioError catch (e) {
-  print(e);
-}
+// using data stream
+final response = await uploader.upload(
+  fileName: file.name,
+  fileSize: file.size,
+  fileDataStream: file.readStream!,
+  maxChunkSize: 500000,
+  path: '/file',
+  onUploadProgress: (progress) => print(progress),
+);
+// using path
+final response = await uploader.uploadUsingFilePath(
+  fileName: file.name,
+  filePath: file.path!,
+  maxChunkSize: 500000,
+  path: '/file',
+  onUploadProgress: (progress) => print(progress),
+);
 ```
