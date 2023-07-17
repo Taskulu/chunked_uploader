@@ -1,3 +1,7 @@
+## [1.1.0]
+
+* Upgrade dependencies
+
 ## [1.0.0]
 
 * **Breaking change**. Add new `upload` method to take file data stream and change
