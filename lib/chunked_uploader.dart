@@ -6,11 +6,14 @@ import 'package:async/async.dart';
 import 'package:dio/dio.dart';
 import 'package:universal_io/io.dart';
 
+/// Uploads large files by chunking them into smaller parts
 class ChunkedUploader {
   final Dio _dio;
 
   const ChunkedUploader(this._dio);
 
+  /// Uploads the file using it's data stream
+  /// Suitable for Web platform since the file path isn't available
   Future<Response?> upload({
     required Stream<List<int>> fileDataStream,
     required String fileName,
@@ -39,6 +42,7 @@ class ChunkedUploader {
         headersCallback: headersCallback,
       ).upload();
 
+  /// Uploads the file using it's path
   Future<Response?> uploadUsingFilePath({
     required String filePath,
     required String fileName,
