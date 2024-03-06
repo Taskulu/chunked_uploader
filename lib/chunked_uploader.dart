@@ -54,6 +54,7 @@ class ChunkedUploader {
     ChunkHeadersCallback? headersCallback,
     String method = 'POST',
     String fileKey = 'file',
+    bool stream = false,
   }) =>
       _Uploader.fromFilePath(
         _dio,
@@ -67,7 +68,7 @@ class ChunkedUploader {
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
         headersCallback: headersCallback,
-      ).upload();
+      ).upload(stream);
 }
 
 class _Uploader {
@@ -118,28 +119,42 @@ class _Uploader {
     _maxChunkSize = min(fileSize, maxChunkSize ?? fileSize);
   }
 
-  Future<Response?> upload() async {
+  Future<Response?> upload([bool stream = false]) async {
     try {
       Response? finalResponse;
       for (int i = 0; i < _chunksCount; i++) {
         final start = _getChunkStart(i);
         final end = _getChunkEnd(i);
         final chunkStream = _getChunkStream();
-        final formData = FormData.fromMap({
-          fileKey: MultipartFile(chunkStream, end - start, filename: fileName),
-          if (data != null) ...data!
-        });
-        finalResponse = await dio.request(
-          path,
-          data: formData,
-          cancelToken: cancelToken,
-          options: Options(
-            method: method,
-            headers: _headersCallback(start, end, fileSize),
-          ),
-          onSendProgress: (current, total) =>
-              _updateProgress(i, current, total),
-        );
+        if (stream) {
+          finalResponse = await dio.request(
+            path,
+            data: chunkStream,
+            cancelToken: cancelToken,
+            options: Options(
+              method: method,
+              headers: _headersCallback(start, end, fileSize),
+            ),
+            onSendProgress: (current, total) =>
+                _updateProgress(i, current, total),
+          );
+        }else {
+          final formData = FormData.fromMap({
+            fileKey: MultipartFile(chunkStream, end - start, filename: fileName),
+            if (data != null) ...data!
+          });
+          finalResponse = await dio.request(
+            path,
+            data: formData,
+            cancelToken: cancelToken,
+            options: Options(
+              method: method,
+              headers: _headersCallback(start, end, fileSize),
+            ),
+            onSendProgress: (current, total) =>
+                _updateProgress(i, current, total),
+          );
+        }
       }
       return finalResponse;
     } catch (_) {
