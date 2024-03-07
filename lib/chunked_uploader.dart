@@ -124,7 +124,7 @@ class _Uploader {
       Response? finalResponse;
       for (int i = 0; i < _chunksCount; i++) {
         final start = _getChunkStart(i);
-        final end = _getChunkEnd(i) - 1; //filesender
+        final end = _getChunkEnd(i);
         final chunkStream = _getChunkStream();
         if (stream) {
           finalResponse = await dio.request(
