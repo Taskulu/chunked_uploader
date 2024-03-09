@@ -2,6 +2,7 @@ library chunked_uploader;
 
 import 'dart:async';
 import 'dart:math';
+
 import 'package:async/async.dart';
 import 'package:dio/dio.dart';
 import 'package:universal_io/io.dart';
@@ -26,6 +27,8 @@ class ChunkedUploader {
     ChunkHeadersCallback? headersCallback,
     String method = 'POST',
     String fileKey = 'file',
+    bool stream = false,
+    Map<String, dynamic>? queryParameters,
   }) =>
       _Uploader(
         _dio,
@@ -40,7 +43,7 @@ class ChunkedUploader {
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
         headersCallback: headersCallback,
-      ).upload();
+      ).upload(stream, queryParameters);
 
   /// Uploads the file using it's path
   Future<Response?> uploadUsingFilePath({
@@ -55,6 +58,7 @@ class ChunkedUploader {
     String method = 'POST',
     String fileKey = 'file',
     bool stream = false,
+    Map<String, dynamic>? queryParameters,
   }) =>
       _Uploader.fromFilePath(
         _dio,
@@ -68,7 +72,7 @@ class ChunkedUploader {
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
         headersCallback: headersCallback,
-      ).upload(stream);
+      ).upload(stream, queryParameters);
 }
 
 class _Uploader {
@@ -119,7 +123,7 @@ class _Uploader {
     _maxChunkSize = min(fileSize, maxChunkSize ?? fileSize);
   }
 
-  Future<Response?> upload([bool stream = false]) async {
+  Future<Response?> upload([bool stream = false, Map<String, dynamic>? queryParameters]) async {
     try {
       Response? finalResponse;
       for (int i = 0; i < _chunksCount; i++) {
@@ -131,6 +135,7 @@ class _Uploader {
             path,
             data: chunkStream,
             cancelToken: cancelToken,
+            queryParameters: queryParameters,
             options: Options(
               method: method,
               headers: _headersCallback(start, end, fileSize),
@@ -140,13 +145,14 @@ class _Uploader {
           );
         }else {
           final formData = FormData.fromMap({
-            fileKey: MultipartFile(chunkStream, end - start, filename: fileName),
+            fileKey: MultipartFile.fromStream(() => chunkStream, end - start, filename: fileName),
             if (data != null) ...data!
           });
           finalResponse = await dio.request(
             path,
             data: formData,
             cancelToken: cancelToken,
+            queryParameters: queryParameters,
             options: Options(
               method: method,
               headers: _headersCallback(start, end, fileSize),
