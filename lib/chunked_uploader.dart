@@ -43,7 +43,9 @@ class ChunkedUploader {
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
         headersCallback: headersCallback,
-      ).upload(stream, queryParameters);
+        stream: stream,
+        queryParameters: queryParameters,
+      ).upload();
 
   /// Uploads the file using it's path
   Future<Response?> uploadUsingFilePath({
@@ -72,7 +74,9 @@ class ChunkedUploader {
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
         headersCallback: headersCallback,
-      ).upload(stream, queryParameters);
+        stream: stream,
+        queryParameters: queryParameters,
+      ).upload();
 }
 
 class _Uploader {
@@ -86,6 +90,8 @@ class _Uploader {
   final Function(double)? onUploadProgress;
   late int _maxChunkSize;
   final ChunkHeadersCallback _headersCallback;
+  final bool stream;
+  final Map<String, dynamic>? queryParameters;
 
   _Uploader(
     this.dio, {
@@ -100,6 +106,8 @@ class _Uploader {
     this.onUploadProgress,
     ChunkHeadersCallback? headersCallback,
     int? maxChunkSize,
+    this.stream = false,
+    this.queryParameters,
   })  : streamReader = ChunkedStreamReader(fileDataStream),
         _maxChunkSize = min(fileSize, maxChunkSize ?? fileSize),
         _headersCallback = headersCallback ?? _defaultHeadersCallback;
@@ -116,6 +124,8 @@ class _Uploader {
     this.onUploadProgress,
     ChunkHeadersCallback? headersCallback,
     int? maxChunkSize,
+    this.stream = false,
+    this.queryParameters,
   }) : _headersCallback = headersCallback ?? _defaultHeadersCallback {
     final file = File(filePath);
     streamReader = ChunkedStreamReader(file.openRead());
@@ -123,7 +133,7 @@ class _Uploader {
     _maxChunkSize = min(fileSize, maxChunkSize ?? fileSize);
   }
 
-  Future<Response?> upload([bool stream = false, Map<String, dynamic>? queryParameters]) async {
+  Future<Response?> upload() async {
     try {
       Response? finalResponse;
       for (int i = 0; i < _chunksCount; i++) {
