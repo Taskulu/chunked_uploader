@@ -2,6 +2,7 @@ library chunked_uploader;
 
 import 'dart:async';
 import 'dart:math';
+
 import 'package:async/async.dart';
 import 'package:dio/dio.dart';
 import 'package:universal_io/io.dart';
@@ -26,6 +27,8 @@ class ChunkedUploader {
     ChunkHeadersCallback? headersCallback,
     String method = 'POST',
     String fileKey = 'file',
+    bool stream = false,
+    Map<String, dynamic>? queryParameters,
   }) =>
       _Uploader(
         _dio,
@@ -40,6 +43,8 @@ class ChunkedUploader {
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
         headersCallback: headersCallback,
+        stream: stream,
+        queryParameters: queryParameters,
       ).upload();
 
   /// Uploads the file using it's path
@@ -54,6 +59,8 @@ class ChunkedUploader {
     ChunkHeadersCallback? headersCallback,
     String method = 'POST',
     String fileKey = 'file',
+    bool stream = false,
+    Map<String, dynamic>? queryParameters,
   }) =>
       _Uploader.fromFilePath(
         _dio,
@@ -67,6 +74,8 @@ class ChunkedUploader {
         maxChunkSize: maxChunkSize,
         onUploadProgress: onUploadProgress,
         headersCallback: headersCallback,
+        stream: stream,
+        queryParameters: queryParameters,
       ).upload();
 }
 
@@ -81,6 +90,8 @@ class _Uploader {
   final Function(double)? onUploadProgress;
   late int _maxChunkSize;
   final ChunkHeadersCallback _headersCallback;
+  final bool stream;
+  final Map<String, dynamic>? queryParameters;
 
   _Uploader(
     this.dio, {
@@ -95,6 +106,8 @@ class _Uploader {
     this.onUploadProgress,
     ChunkHeadersCallback? headersCallback,
     int? maxChunkSize,
+    this.stream = false,
+    this.queryParameters,
   })  : streamReader = ChunkedStreamReader(fileDataStream),
         _maxChunkSize = min(fileSize, maxChunkSize ?? fileSize),
         _headersCallback = headersCallback ?? _defaultHeadersCallback;
@@ -111,6 +124,8 @@ class _Uploader {
     this.onUploadProgress,
     ChunkHeadersCallback? headersCallback,
     int? maxChunkSize,
+    this.stream = false,
+    this.queryParameters,
   }) : _headersCallback = headersCallback ?? _defaultHeadersCallback {
     final file = File(filePath);
     streamReader = ChunkedStreamReader(file.openRead());
@@ -125,21 +140,37 @@ class _Uploader {
         final start = _getChunkStart(i);
         final end = _getChunkEnd(i);
         final chunkStream = _getChunkStream();
-        final formData = FormData.fromMap({
-          fileKey: MultipartFile(chunkStream, end - start, filename: fileName),
-          if (data != null) ...data!
-        });
-        finalResponse = await dio.request(
-          path,
-          data: formData,
-          cancelToken: cancelToken,
-          options: Options(
-            method: method,
-            headers: _headersCallback(start, end, fileSize),
-          ),
-          onSendProgress: (current, total) =>
-              _updateProgress(i, current, total),
-        );
+        if (stream) {
+          finalResponse = await dio.request(
+            path,
+            data: chunkStream,
+            cancelToken: cancelToken,
+            queryParameters: queryParameters,
+            options: Options(
+              method: method,
+              headers: _headersCallback(start, end, fileSize),
+            ),
+            onSendProgress: (current, total) =>
+                _updateProgress(i, current, total),
+          );
+        }else {
+          final formData = FormData.fromMap({
+            fileKey: MultipartFile.fromStream(() => chunkStream, end - start, filename: fileName),
+            if (data != null) ...data!
+          });
+          finalResponse = await dio.request(
+            path,
+            data: formData,
+            cancelToken: cancelToken,
+            queryParameters: queryParameters,
+            options: Options(
+              method: method,
+              headers: _headersCallback(start, end, fileSize),
+            ),
+            onSendProgress: (current, total) =>
+                _updateProgress(i, current, total),
+          );
+        }
       }
       return finalResponse;
     } catch (_) {
